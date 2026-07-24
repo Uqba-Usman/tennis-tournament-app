@@ -36,5 +36,30 @@ npx vitest run        # run the unit test suite
 
 ## Building the Android APK
 
-See [`ANDROID_BUILD.md`](./ANDROID_BUILD.md) for exact command-line-only
-steps (no Android Studio required).
+A GitHub Actions workflow builds the APK automatically on every push (see
+`.github/workflows/`). For local command-line-only builds instead, see
+[`ANDROID_BUILD.md`](./ANDROID_BUILD.md) (no Android Studio required).
+
+## Recent enhancements
+
+- Standings are shown as a compact, cricket-league-style table (Pos / Player /
+  M / W / L / Sets ± / Games ± / Pts) with an inline "Q" badge for players
+  qualifying for the next stage.
+- A single-step "Undo" reverts the last recorded scoring action (point, game,
+  or completed match/stage) in case of a mis-tap.
+- The Home screen lists every tournament currently in progress (not just one),
+  supporting multiple simultaneous tournaments, with a soft warning if a
+  player is already active in another in-progress tournament.
+- A "Rounds" tab shows the full round-by-round history of every stage played
+  so far, for both active and completed tournaments.
+- Completed tournaments can be exported as a full-detail PDF report (tournament
+  info, champion, every stage's standings, every round's scores) generated
+  entirely client-side with `jspdf`/`jspdf-autotable` — no backend required.
+- Player profiles can be edited from the player detail page: Username, plus
+  optional Full Name and Age.
+- Advancing from a completed round to the next round/stage/champion now shows
+  a tailored confirmation prompt ("Continue →") instead of auto-cascading
+  instantly — the completed round's court is still freed automatically, only
+  the round/stage/champion transition itself waits for confirmation.
+- The Standings tab has a stage selector, so standings from any previously
+  reached stage remain viewable after the tournament has advanced further.

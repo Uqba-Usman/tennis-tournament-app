@@ -8,8 +8,11 @@ import {
   recordSimpleGameWinner,
   recordOfficialPointWinner,
   recordOfficialTiebreakWinner,
+  describePendingAdvance,
+  advanceStageAfterRoundConfirmed,
   type Tournament,
   type CreateTournamentParams,
+  type PendingAdvanceDescription,
 } from '../tournament-management';
 
 const MAX_UNDO_HISTORY_PER_TOURNAMENT = 20;
@@ -38,6 +41,11 @@ export const useTournamentStore = defineStore('tournament', {
     canUndoActiveTournament: (state): boolean =>
       state.activeTournamentId !== null &&
       (state.undoHistoryByTournamentId[state.activeTournamentId]?.length ?? 0) > 0,
+    pendingAdvanceForActiveTournament: (state): PendingAdvanceDescription | null => {
+      const tournament = state.tournaments.find((existingTournament) => existingTournament.id === state.activeTournamentId);
+      if (!tournament || tournament.status === 'completed') return null;
+      return describePendingAdvance(tournament, tournament.currentStageIndex);
+    },
   },
   actions: {
     async loadTournaments(): Promise<void> {
@@ -108,6 +116,12 @@ export const useTournamentStore = defineStore('tournament', {
       if (!tournament) return;
       this.pushUndoSnapshot(tournament);
       await this.persistAndSet(recordOfficialTiebreakWinner(tournament, matchId, winningSide));
+    },
+    async confirmRoundAdvance(): Promise<void> {
+      const tournament = this.activeTournament;
+      if (!tournament) return;
+      this.pushUndoSnapshot(tournament);
+      await this.persistAndSet(advanceStageAfterRoundConfirmed(tournament, tournament.currentStageIndex));
     },
   },
 });

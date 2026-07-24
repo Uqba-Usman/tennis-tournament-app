@@ -14,7 +14,7 @@ import {
   type MatchSide,
 } from '../match-scoring';
 import { locateMatch } from './match-locator';
-import { advanceTournamentAfterMatchCompletion } from './stage-progression-service';
+import { applyMatchCompletionAndFreeCourt } from './stage-progression-service';
 import type { Tournament } from './tournament';
 
 function sideToPlayerId(match: Match, side: MatchSide): string {
@@ -38,7 +38,7 @@ function applyMatchUpdate(tournament: Tournament, matchId: string, updatedMatch:
   };
 
   if (updatedMatch.status !== 'completed') return updatedTournament;
-  return advanceTournamentAfterMatchCompletion(updatedTournament, stageIndex, roundIndex, matchIndex);
+  return applyMatchCompletionAndFreeCourt(updatedTournament, stageIndex, roundIndex, matchIndex);
 }
 
 function finishMatchIfWon(tournament: Tournament, match: Match): Tournament {

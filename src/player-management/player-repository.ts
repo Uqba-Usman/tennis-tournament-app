@@ -1,6 +1,6 @@
 import { tennisTournamentDatabase } from '../persistence/database';
 import { PlayerNotFoundError } from '../common/domain-errors';
-import { createPlayer, type Player, type PlayerId } from './player';
+import { createPlayer, type Player, type PlayerId, type PlayerProfileUpdate } from './player';
 
 export async function fetchAllPlayers(): Promise<Player[]> {
   return tennisTournamentDatabase.players.orderBy('name').toArray();
@@ -22,4 +22,15 @@ export async function addPlayer(name: string): Promise<Player> {
 
 export async function removePlayer(playerId: PlayerId): Promise<void> {
   await tennisTournamentDatabase.players.delete(playerId);
+}
+
+export async function updatePlayer(playerId: PlayerId, updates: PlayerProfileUpdate): Promise<Player> {
+  const trimmedName = updates.name.trim();
+  const changes: Partial<Player> = {
+    name: trimmedName,
+    fullName: updates.fullName?.trim() ? updates.fullName.trim() : undefined,
+    age: updates.age,
+  };
+  await tennisTournamentDatabase.players.update(playerId, changes);
+  return fetchPlayerById(playerId);
 }

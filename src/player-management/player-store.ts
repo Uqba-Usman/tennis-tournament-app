@@ -1,5 +1,13 @@
 import { defineStore } from 'pinia';
-import { addPlayer, fetchAllPlayers, removePlayer, type Player, type PlayerId } from '../player-management';
+import {
+  addPlayer,
+  fetchAllPlayers,
+  removePlayer,
+  updatePlayer,
+  type Player,
+  type PlayerId,
+  type PlayerProfileUpdate,
+} from '../player-management';
 
 type PlayerStoreState = {
   players: Player[];
@@ -29,6 +37,13 @@ export const usePlayerStore = defineStore('player', {
     async deletePlayer(playerId: PlayerId): Promise<void> {
       await removePlayer(playerId);
       this.players = this.players.filter((player) => player.id !== playerId);
+    },
+    async updatePlayer(playerId: PlayerId, updates: PlayerProfileUpdate): Promise<Player> {
+      const updatedPlayer = await updatePlayer(playerId, updates);
+      this.players = this.players
+        .map((player) => (player.id === playerId ? updatedPlayer : player))
+        .sort((firstPlayer, secondPlayer) => firstPlayer.name.localeCompare(secondPlayer.name));
+      return updatedPlayer;
     },
   },
 });
