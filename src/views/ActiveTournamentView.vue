@@ -12,13 +12,27 @@ const props = defineProps<{ tournamentId: string }>();
 
 const playerStore = usePlayerStore();
 const tournamentStore = useTournamentStore();
-const { activeTournament } = storeToRefs(tournamentStore);
+const { activeTournament, canUndoActiveTournament } = storeToRefs(tournamentStore);
 const activeTab = ref<'fixtures' | 'standings'>('fixtures');
+const undoToastMessage = ref<string | null>(null);
+let undoToastTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 onMounted(async () => {
   await playerStore.loadPlayers();
   await tournamentStore.ensureTournamentLoaded(props.tournamentId);
 });
+
+async function undoLastAction(): Promise<void> {
+  const tournament = activeTournament.value;
+  if (!tournament) return;
+  const didUndo = await tournamentStore.undoLastAction(tournament.id);
+  if (!didUndo) return;
+  undoToastMessage.value = 'Last action undone';
+  if (undoToastTimeoutId) clearTimeout(undoToastTimeoutId);
+  undoToastTimeoutId = setTimeout(() => {
+    undoToastMessage.value = null;
+  }, 2000);
+}
 
 function getPlayerName(playerId: string | null): string {
   if (!playerId) return 'TBD';
@@ -71,13 +85,26 @@ const sortedMatchesInRound = computed(() => {
 
 <template>
   <div v-if="activeTournament" class="flex flex-col gap-4 px-4 pt-5">
-    <div>
-      <h2 class="text-lg font-bold text-slate-800">{{ activeTournament.name }}</h2>
-      <p class="text-xs text-slate-500">
-        {{ formatDefinition?.name }} &middot; {{ activeTournament.courtCount }} court(s) &middot;
-        {{ activeTournament.scoringConfiguration.gameScoringMode === 'official' ? 'Official scoring' : 'Simple scoring' }}
-      </p>
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-slate-800">{{ activeTournament.name }}</h2>
+        <p class="text-xs text-slate-500">
+          {{ formatDefinition?.name }} &middot; {{ activeTournament.courtCount }} court(s) &middot;
+          {{ activeTournament.scoringConfiguration.gameScoringMode === 'official' ? 'Official scoring' : 'Simple scoring' }}
+        </p>
+      </div>
+      <button
+        v-if="activeTournament.status !== 'completed'"
+        type="button"
+        class="flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm active:scale-95 disabled:opacity-40"
+        :disabled="!canUndoActiveTournament"
+        @click="undoLastAction"
+      >↶ Undo</button>
     </div>
+
+    <p v-if="undoToastMessage" class="rounded-lg bg-ink px-3 py-1.5 text-center text-xs font-medium text-white">
+      {{ undoToastMessage }}
+    </p>
 
     <section
       v-if="activeTournament.status === 'completed'"

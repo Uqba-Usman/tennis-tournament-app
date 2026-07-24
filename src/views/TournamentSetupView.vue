@@ -15,7 +15,7 @@ const playerStore = usePlayerStore();
 const tournamentStore = useTournamentStore();
 
 onMounted(async () => {
-  await playerStore.loadPlayers();
+  await Promise.all([playerStore.loadPlayers(), tournamentStore.loadTournaments()]);
 });
 
 const tournamentName = ref('');
@@ -42,6 +42,13 @@ function togglePlayer(playerId: string): void {
   selectedPlayerIds.value = selectedPlayerIds.value.includes(playerId)
     ? selectedPlayerIds.value.filter((id) => id !== playerId)
     : [...selectedPlayerIds.value, playerId];
+}
+
+function busyTournamentNameForPlayer(playerId: string): string | null {
+  const busyTournament = tournamentStore.tournaments.find(
+    (tournament) => tournament.status === 'inProgress' && tournament.playerIds.includes(playerId),
+  );
+  return busyTournament?.name ?? null;
 }
 
 async function handleAddNewPlayer(): Promise<void> {
@@ -182,16 +189,20 @@ async function handleStartTournament(): Promise<void> {
         <button type="submit" class="rounded-xl bg-court px-4 py-2.5 text-sm font-semibold text-white shadow">Add</button>
       </form>
       <div class="flex flex-wrap gap-2">
-        <button
-          v-for="player in playerStore.players"
-          :key="player.id"
-          type="button"
-          class="rounded-full border-2 px-3.5 py-1.5 text-sm font-medium transition"
-          :class="selectedPlayerIds.includes(player.id) ? 'border-court bg-court text-white' : 'border-slate-200 bg-white text-slate-600'"
-          @click="togglePlayer(player.id)"
-        >
-          {{ player.name }}
-        </button>
+        <div v-for="player in playerStore.players" :key="player.id" class="flex flex-col items-start gap-0.5">
+          <button
+            type="button"
+            class="rounded-full border-2 px-3.5 py-1.5 text-sm font-medium transition"
+            :class="selectedPlayerIds.includes(player.id) ? 'border-court bg-court text-white' : 'border-slate-200 bg-white text-slate-600'"
+            @click="togglePlayer(player.id)"
+          >
+            {{ player.name }}
+          </button>
+          <span
+            v-if="selectedPlayerIds.includes(player.id) && busyTournamentNameForPlayer(player.id)"
+            class="pl-1 text-[10px] font-medium text-clay"
+          >⚠ Already playing in {{ busyTournamentNameForPlayer(player.id) }}</span>
+        </div>
       </div>
     </section>
 

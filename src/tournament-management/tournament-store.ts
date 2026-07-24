@@ -12,10 +12,13 @@ import {
   type CreateTournamentParams,
 } from '../tournament-management';
 
+const MAX_UNDO_HISTORY_PER_TOURNAMENT = 20;
+
 type TournamentStoreState = {
   tournaments: Tournament[];
   activeTournamentId: string | null;
   hasLoaded: boolean;
+  undoHistoryByTournamentId: Record<string, Tournament[]>;
 };
 
 export const useTournamentStore = defineStore('tournament', {
@@ -23,12 +26,18 @@ export const useTournamentStore = defineStore('tournament', {
     tournaments: [],
     activeTournamentId: null,
     hasLoaded: false,
+    undoHistoryByTournamentId: {},
   }),
   getters: {
     activeTournament: (state): Tournament | null =>
       state.tournaments.find((tournament) => tournament.id === state.activeTournamentId) ?? null,
-    tournamentInProgress: (state): Tournament | null =>
-      state.tournaments.find((tournament) => tournament.status === 'inProgress') ?? null,
+    tournamentsInProgress: (state): Tournament[] =>
+      state.tournaments
+        .filter((tournament) => tournament.status === 'inProgress')
+        .sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()),
+    canUndoActiveTournament: (state): boolean =>
+      state.activeTournamentId !== null &&
+      (state.undoHistoryByTournamentId[state.activeTournamentId]?.length ?? 0) > 0,
   },
   actions: {
     async loadTournaments(): Promise<void> {
@@ -68,19 +77,36 @@ export const useTournamentStore = defineStore('tournament', {
         tournament.id === updatedTournament.id ? updatedTournament : tournament,
       );
     },
+    pushUndoSnapshot(tournament: Tournament): void {
+      const history = this.undoHistoryByTournamentId[tournament.id] ?? [];
+      const updatedHistory = [...history, tournament].slice(-MAX_UNDO_HISTORY_PER_TOURNAMENT);
+      this.undoHistoryByTournamentId = { ...this.undoHistoryByTournamentId, [tournament.id]: updatedHistory };
+    },
+    async undoLastAction(tournamentId: string): Promise<boolean> {
+      const history = this.undoHistoryByTournamentId[tournamentId];
+      if (!history || history.length === 0) return false;
+      const previousSnapshot = history[history.length - 1] as Tournament;
+      const remainingHistory = history.slice(0, -1);
+      this.undoHistoryByTournamentId = { ...this.undoHistoryByTournamentId, [tournamentId]: remainingHistory };
+      await this.persistAndSet(previousSnapshot);
+      return true;
+    },
     async recordSimpleGameWinner(matchId: string, winningSide: MatchSide): Promise<void> {
       const tournament = this.activeTournament;
       if (!tournament) return;
+      this.pushUndoSnapshot(tournament);
       await this.persistAndSet(recordSimpleGameWinner(tournament, matchId, winningSide));
     },
     async recordOfficialPointWinner(matchId: string, winningSide: MatchSide): Promise<void> {
       const tournament = this.activeTournament;
       if (!tournament) return;
+      this.pushUndoSnapshot(tournament);
       await this.persistAndSet(recordOfficialPointWinner(tournament, matchId, winningSide));
     },
     async recordOfficialTiebreakWinner(matchId: string, winningSide: MatchSide): Promise<void> {
       const tournament = this.activeTournament;
       if (!tournament) return;
+      this.pushUndoSnapshot(tournament);
       await this.persistAndSet(recordOfficialTiebreakWinner(tournament, matchId, winningSide));
     },
   },
